@@ -12,6 +12,8 @@ from app.schemas.user import (
     UserCreate,
     UserLogin,
     UserResponse,
+    PasswordResetRequest,
+    PasswordResetUpdate,
 )
 from app.services.auth import AuthService
 from app.api.dependencies import get_current_user
@@ -126,3 +128,30 @@ async def resend_verification(
         service.send_verification_email, user, host=str(request.base_url)
     )
     return {"detail": "Verification email queued"}
+
+
+@router.post("/forgot-password", summary="Request a password reset")
+async def forgot_password(
+    reset_request: PasswordResetRequest,
+    background_tasks: BackgroundTasks,
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+) -> dict:
+    """Request a password reset by email."""
+
+    service = AuthService(session)
+    background_tasks.add_task(
+        service.request_password_reset, reset_request, str(request.base_url)
+    )
+    return {"detail": "If the email exists, a password reset link has been sent"}
+
+
+@router.post("/reset-password", summary="Reset password with token")
+async def reset_password(
+    reset_update: PasswordResetUpdate,
+    session: AsyncSession = Depends(get_db),
+) -> dict:
+    """Reset password using a valid password reset token."""
+
+    service = AuthService(session)
+    return await service.reset_password(reset_update)

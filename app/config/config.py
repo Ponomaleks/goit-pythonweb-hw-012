@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     mail_ssl_tls: bool = False
     mail_template_folder: str | None = "app/templates/email"
     email_verification_token_expire_hours: int = 48
+    password_reset_token_expire_minutes: int = 30
 
     # CORS
     cors_allowed_origins: list[str] = [

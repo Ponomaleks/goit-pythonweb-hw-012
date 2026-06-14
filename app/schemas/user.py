@@ -59,3 +59,16 @@ class EmailRequest(UserSchema):
     """Payload for endpoints that accept an email address only."""
 
     email: EmailStr
+
+
+class PasswordResetRequest(UserSchema):
+    """Payload for requesting a password reset."""
+
+    email: EmailStr
+
+
+class PasswordResetUpdate(UserSchema):
+    """Payload for updating password via reset token."""
+
+    token: str
+    password: str = Field(min_length=8, max_length=128)

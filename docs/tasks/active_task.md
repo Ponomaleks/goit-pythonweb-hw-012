@@ -1,34 +1,37 @@
 # ACTIVE TASK
 
-## TASK ID: AUTH-001
+## TASK ID: SEC-001
 
 ## Title:
-JWT Refresh Token System
+Role-Based Access Control (RBAC)
 
 ---
 
 ## Objective:
-Implement secure refresh token mechanism alongside existing JWT authentication.
+Introduce user roles and enforce permissions across API.
 
 ---
 
 ## Scope (STRICT)
-- generate access_token (short-lived)
-- generate refresh_token (long-lived)
-- store refresh_token in Redis (or DB fallback if needed)
-- implement refresh endpoint: /auth/refresh
-- implement token rotation (invalidate old refresh token)
+- add role field to User model (user/admin)
+- implement role check dependency
+- protect admin-only operations
+- enforce role validation in dependency layer (not routers)
 
 ---
 
 ## Constraints
-- do NOT break existing login endpoint
-- do NOT modify API response structure unless necessary
-- keep backward compatibility
+- default role should be "user"
+- only admin can change role
+- no duplicated role checks in endpoints
+- must use FastAPI dependencies
+- no breaking API changes
+- role checks must be in dependency layer
 
 ---
 
 ## Acceptance Criteria
-- user can refresh expired access token
-- old refresh token becomes invalid after use
-- refresh token stored securely
+- admin-only routes are protected
+- users have assignable roles
+- normal users cannot access admin actions
+- role system is reusable via dependency

@@ -23,6 +23,8 @@ from app.schemas.user import (
     UserCreate,
     UserLogin,
     UserResponse,
+    PasswordResetRequest,
+    PasswordResetUpdate,
 )
 from app.services.avatar import build_gravatar_url
 from app.services.mailer import send_verification_email as send_verification_email_async
@@ -41,7 +43,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 def create_token(
-    subject: str, expiry_delta: timedelta, token_type: Literal["access", "refresh", "email_verification"]
+    subject: str, expiry_delta: timedelta, token_type: Literal["access", "refresh", "email_verification", "password_reset"]
 ) -> str:
     """Create a signed JWT token with the given subject, expiry, and optional type."""
 
@@ -89,6 +91,18 @@ def create_email_verification_token(subject: str) -> str:
     )
 
 
+def create_password_reset_token(subject: str) -> str:
+    """Create a time-limited token used for password reset."""
+
+    settings = get_settings()
+
+    return create_token(
+        subject,
+        timedelta(minutes=settings.password_reset_token_expire_minutes),
+        token_type="password_reset",
+    )
+
+
 def decode_email_verification_token(token: str) -> str:
     """Decode and validate an email verification token, returning the subject."""
 
@@ -101,6 +115,21 @@ def decode_email_verification_token(token: str) -> str:
     subject = payload.get("sub")
     if not subject or not isinstance(subject, str):
         raise InvalidCredentialsError("Invalid verification token")
+    return subject
+
+
+def decode_password_reset_token(token: str) -> str:
+    """Decode and validate a password reset token, returning the subject."""
+
+    settings = get_settings()
+    payload = jwt.decode(
+        token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm]
+    )
+    if payload.get("type") != "password_reset":
+        raise InvalidCredentialsError("Invalid password reset token")
+    subject = payload.get("sub")
+    if not subject or not isinstance(subject, str):
+        raise InvalidCredentialsError("Invalid password reset token")
     return subject
 
 
@@ -268,3 +297,56 @@ class AuthService:
         )
         await self._commit_and_refresh(user)
         return token_pair
+
+    async def request_password_reset(self, reset_request: PasswordResetRequest, host: str) -> dict:
+        """Generate a password reset token and send it via email."""
+
+        user = await self.repository.get_user_by_email(reset_request.email)
+        if user is None:
+            # Do not expose that user doesn't exist
+            return {"detail": "If the email exists, a password reset link has been sent"}
+
+        reset_token = create_password_reset_token(user.email)
+        settings = get_settings()
+        host = host.rstrip("/")
+        reset_path = f"{settings.api_v1_prefix}/auth/reset-password?token={reset_token}"
+        reset_link = f"{host}{reset_path}"
+
+        template_data = {"link": reset_link, "app_name": settings.app_name }
+        user.password_reset_token_hash = hash_token(reset_token)
+        user.password_reset_token_expires_at = datetime.now(UTC) + timedelta(
+            minutes=settings.password_reset_token_expire_minutes
+        )
+        await self._commit_and_refresh(user)
+        await send_verification_email_async(
+            user.email, "Reset your password", template_data, template_name="password_reset.html"
+        )
+        return {"detail": "If the email exists, a password reset link has been sent"}
+
+    async def reset_password(self, reset_update: PasswordResetUpdate) -> dict:
+        """Verify password reset token and update password."""
+
+        try:
+            email = decode_password_reset_token(reset_update.token)
+        except JWTError:
+            raise InvalidCredentialsError("Invalid or expired password reset token")
+
+        user = await self.repository.get_user_by_email(email)
+        if user is None:
+            raise InvalidCredentialsError("Invalid or expired password reset token")
+
+        stored_hash = user.password_reset_token_hash
+        expires_at = user.password_reset_token_expires_at
+        if (
+            not stored_hash
+            or not expires_at
+            or expires_at <= datetime.now(UTC)
+            or stored_hash != hash_token(reset_update.token)
+        ):
+            raise InvalidCredentialsError("Invalid or expired password reset token")
+
+        user.hashed_password = hash_password(reset_update.password)
+        user.password_reset_token_hash = None
+        user.password_reset_token_expires_at = None
+        await self._commit_and_refresh(user)
+        return {"detail": "Password has been reset successfully"}
