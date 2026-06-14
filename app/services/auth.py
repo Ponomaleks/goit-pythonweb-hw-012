@@ -1,7 +1,9 @@
 """Business logic for authentication operations."""
 
 import bcrypt
+import hashlib
 
+from typing import Optional, Literal
 from datetime import UTC, datetime, timedelta
 from jose import jwt
 from jose.exceptions import JWTError
@@ -15,7 +17,13 @@ from app.exceptions import (
     UserNotFoundError,
 )
 from app.repositories.user import UserRepository
-from app.schemas.user import TokenResponse, UserCreate, UserLogin, UserResponse
+from app.schemas.user import (
+    RefreshTokenRequest,
+    TokenResponse,
+    UserCreate,
+    UserLogin,
+    UserResponse,
+)
 from app.services.avatar import build_gravatar_url
 from app.services.mailer import send_verification_email as send_verification_email_async
 
@@ -32,27 +40,52 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     )
 
 
-def create_access_token(subject: str) -> str:
-    """Create a signed JWT access token for the given subject."""
+def create_token(
+    subject: str, expiry_delta: timedelta, token_type: Literal["access", "refresh", "email_verification"]
+) -> str:
+    """Create a signed JWT token with the given subject, expiry, and optional type."""
 
     settings = get_settings()
-    expire = datetime.now(UTC) + timedelta(minutes=settings.access_token_expire_minutes)
-    payload = {"sub": subject, "exp": expire}
+    now = datetime.now(UTC)
+    expire = now + expiry_delta
+    payload = {"sub": subject, "exp": expire, "iat": now, "type": token_type}
+
     return jwt.encode(
         payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm
     )
+
+
+def create_access_token(subject: str, expires_delta: Optional[float]=None) -> str:
+    """Create a signed JWT access token for the given subject."""
+
+    settings = get_settings()
+    expire_minutes = expires_delta or timedelta(minutes=settings.access_token_expire_minutes)
+
+    refresh_token = create_token(subject, expire_minutes, "access")
+
+    return refresh_token
+
+
+def create_refresh_token(subject: str, expires_delta: Optional[float]=None) -> str:
+    """Create a signed JWT refresh token for the given subject."""
+
+    settings = get_settings()
+    expire_minutes = expires_delta or timedelta(minutes=settings.refresh_token_expire_days * 24 * 60)
+
+    refresh_token = create_token(subject, expire_minutes, "refresh")
+
+    return refresh_token
 
 
 def create_email_verification_token(subject: str) -> str:
     """Create a time-limited token used for email verification."""
 
     settings = get_settings()
-    expire = datetime.now(UTC) + timedelta(
-        hours=settings.email_verification_token_expire_hours
-    )
-    payload = {"sub": subject, "exp": expire, "type": "email_verification"}
-    return jwt.encode(
-        payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm
+
+    return create_token(
+        subject,
+        timedelta(hours=settings.email_verification_token_expire_hours),
+        token_type="email_verification",
     )
 
 
@@ -78,10 +111,33 @@ def decode_access_token(token: str) -> str:
     payload = jwt.decode(
         token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm]
     )
+    if payload.get("type") != "access":
+        raise InvalidCredentialsError("Invalid access token")
     subject = payload.get("sub")
     if not subject or not isinstance(subject, str):
         raise InvalidCredentialsError("Invalid access token")
     return subject
+
+
+def decode_refresh_token(token: str) -> str:
+    """Decode and validate a JWT refresh token, returning the user."""
+
+    settings = get_settings()
+    payload = jwt.decode(
+        token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm]
+    )
+    if payload.get("type") != "refresh":
+        raise InvalidCredentialsError("Invalid refresh token")
+    subject = payload.get("sub")
+    if not subject or not isinstance(subject, str):
+        raise InvalidCredentialsError("Invalid refresh token")
+    return subject
+
+
+def hash_token(token: str) -> str:
+    """Return a stable hash for storing token material securely."""
+
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
 class AuthService:
@@ -103,6 +159,11 @@ class AuthService:
         existing_user = await self.repository.get_user_by_email(email)
         if existing_user:
             raise UserAlreadyExistsError("User with this email already exists")
+
+    def _build_token_pair(self, subject: str, old_refresh_token: str=None) -> TokenResponse:
+        access_token = create_access_token(subject=subject)
+        refresh_token = old_refresh_token or create_refresh_token(subject=subject)
+        return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
     async def register_user(self, user_in: UserCreate) -> UserResponse:
         """Create a new user with a hashed password."""
@@ -155,7 +216,7 @@ class AuthService:
         return UserResponse.model_validate(user)
 
     async def login_user(self, user_in: UserLogin) -> TokenResponse:
-        """Validate user credentials and return an access token."""
+        """Validate user credentials and return a token pair."""
 
         user = await self.repository.get_user_by_email(user_in.email)
         if user is None or not verify_password(user_in.password, user.hashed_password):
@@ -163,5 +224,47 @@ class AuthService:
         if not user.is_verified:
             raise InvalidCredentialsError("Email address is not verified")
 
-        access_token = create_access_token(subject=user.email)
-        return TokenResponse(access_token=access_token)
+        token_pair = self._build_token_pair(subject=user.email)
+        user.refresh_token_hash = hash_token(token_pair.refresh_token)
+        user.refresh_token_expires_at = datetime.now(UTC) + timedelta(
+            days=get_settings().refresh_token_expire_days
+        )
+        await self._commit_and_refresh(user)
+        return token_pair
+    
+    async def logout_user(self, user) -> None:
+        """Invalidate the user's refresh token by clearing the stored hash and expiry."""
+
+        user.refresh_token_hash = None
+        user.refresh_token_expires_at = None
+        await self._commit_and_refresh(user)
+
+    async def refresh_tokens(self, refresh_request: RefreshTokenRequest) -> TokenResponse:
+        """Rotate a valid refresh token and return a new token pair."""
+
+        try:
+            email = decode_refresh_token(refresh_request.refresh_token)
+        except JWTError:
+            raise InvalidCredentialsError("Invalid or expired refresh token")
+
+        user = await self.repository.get_user_by_email(email)
+        if user is None:
+            raise InvalidCredentialsError("Invalid or expired refresh token")
+
+        stored_hash = user.refresh_token_hash
+        expires_at = user.refresh_token_expires_at
+        if (
+            not stored_hash
+            or not expires_at
+            or expires_at <= datetime.now(UTC)
+            or stored_hash != hash_token(refresh_request.refresh_token)
+        ):
+            raise InvalidCredentialsError("Invalid or expired refresh token")
+
+        token_pair = self._build_token_pair(subject=user.email, old_refresh_token=refresh_request.refresh_token)
+        user.refresh_token_hash = hash_token(token_pair.refresh_token)
+        user.refresh_token_expires_at = datetime.now(UTC) + timedelta(
+            days=get_settings().refresh_token_expire_days
+        )
+        await self._commit_and_refresh(user)
+        return token_pair

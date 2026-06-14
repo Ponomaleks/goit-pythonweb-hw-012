@@ -45,7 +45,14 @@ class TokenResponse(UserSchema):
     """JWT access token response."""
 
     access_token: str
+    refresh_token: str | None = None
     token_type: str = "bearer"
+
+
+class RefreshTokenRequest(UserSchema):
+    """Payload used to exchange a refresh token for a new token pair."""
+
+    refresh_token: str
 
 
 class EmailRequest(UserSchema):

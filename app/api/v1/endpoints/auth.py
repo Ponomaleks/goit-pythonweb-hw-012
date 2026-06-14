@@ -7,12 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.dependencies import get_db
 from app.schemas.user import (
     EmailRequest,
+    RefreshTokenRequest,
     TokenResponse,
     UserCreate,
     UserLogin,
     UserResponse,
 )
 from app.services.auth import AuthService
+from app.api.dependencies import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -52,11 +54,44 @@ async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     session: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
-    """Authenticate a user and return an access token."""
+    """Authenticate a user and return a token pair."""
 
     service = AuthService(session)
     user_in = UserLogin(email=form_data.username, password=form_data.password)
     return await service.login_user(user_in)
+
+@router.post(
+    "/logout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Logout the current user",
+)
+async def logout(
+    session: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+) -> None:
+    """Invalidate the current user's refresh token."""
+
+    if current_user is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    service = AuthService(session)
+    await service.logout_user(current_user)
+
+
+@router.post(
+    "/refresh",
+    response_model=TokenResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Refresh an access token",
+)
+async def refresh(
+    refresh_request: RefreshTokenRequest,
+    session: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    """Rotate a refresh token and issue a new token pair."""
+
+    service = AuthService(session)
+    return await service.refresh_tokens(refresh_request)
 
 
 @router.get("/verify", response_model=UserResponse, summary="Verify an email token")
