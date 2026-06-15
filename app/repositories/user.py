@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
+from app.models.user import UserRole
 
 
 class UserRepository:
@@ -16,15 +17,28 @@ class UserRepository:
         self,
         email: str,
         hashed_password: str,
+        role: UserRole = UserRole.USER,
         avatar_url: str | None = None,
     ) -> User:
         """Create a user ORM object, add to session, and flush."""
 
         user = User(
             email=email,
+            role=role,
             hashed_password=hashed_password,
             avatar_url=avatar_url,
         )
+        self.session.add(user)
+        await self.session.flush()
+        return user
+
+    async def update_user_role(self, user_id: int, role: UserRole) -> User | None:
+        """Update a user's role and return the updated user or `None`."""
+
+        user = await self.get_user_by_id(user_id)
+        if user is None:
+            return None
+        user.role = role
         self.session.add(user)
         await self.session.flush()
         return user

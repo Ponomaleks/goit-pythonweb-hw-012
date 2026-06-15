@@ -1,6 +1,7 @@
 """Pydantic schemas for users and authentication."""
 
 from datetime import datetime
+from app.models.user import UserRole
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
@@ -34,6 +35,7 @@ class UserResponse(UserSchema):
 
     id: int
     email: EmailStr
+    role: UserRole
     is_active: bool
     is_verified: bool
     avatar_url: str | None = None
@@ -72,3 +74,9 @@ class PasswordResetUpdate(UserSchema):
 
     token: str
     password: str = Field(min_length=8, max_length=128)
+
+
+class UserRoleUpdate(UserSchema):
+    """Payload for updating a user's role."""
+
+    role: UserRole

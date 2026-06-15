@@ -3,12 +3,13 @@
 from fastapi import APIRouter, Depends, File, Request, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_current_user
+from app.api.dependencies import get_current_user, require_admin, require_moderator_or_admin
 from app.db.dependencies import get_db
 from app.config import get_settings
 from app.core.limiter import limiter
-from app.models.user import User
-from app.schemas.user import UserResponse
+from app.exceptions import UserNotFoundError
+from app.models.user import User, UserRole
+from app.schemas.user import UserResponse, UserRoleUpdate
 from app.repositories.user import UserRepository
 from app.services.avatar import upload_avatar
 
@@ -57,3 +58,40 @@ async def update_current_user_avatar(
     await session.commit()
     await session.refresh(updated_user)
     return UserResponse.model_validate(updated_user)
+
+
+@router.patch(
+    "/{user_id}/role",
+    response_model=UserResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Update a user's role",
+)
+async def update_user_role(
+    user_id: int,
+    role_update: UserRoleUpdate,
+    session: AsyncSession = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> UserResponse:
+    """Allow admins to update a user's role."""
+
+    repository = UserRepository(session)
+    updated_user = await repository.update_user_role(user_id, role_update.role)
+    if updated_user is None:
+        raise UserNotFoundError("User not found")
+
+    await session.commit()
+    await session.refresh(updated_user)
+    return UserResponse.model_validate(updated_user)
+
+
+@router.get(
+    "/access-check",
+    status_code=status.HTTP_200_OK,
+    summary="Protected access test for moderators and admins",
+)
+async def moderator_admin_access_check(
+    _: User = Depends(require_moderator_or_admin),
+) -> dict:
+    """Return a success message for moderator/admin access."""
+
+    return {"detail": "Successful access for moderator or admin"}
