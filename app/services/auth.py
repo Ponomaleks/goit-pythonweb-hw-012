@@ -46,7 +46,16 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def create_token(
     subject: str, expiry_delta: timedelta, token_type: Literal["access", "refresh", "email_verification", "password_reset"]
 ) -> str:
-    """Create a signed JWT token with the given subject, expiry, and optional type."""
+    """Create a signed JWT token.
+
+    Args:
+        subject: JWT subject value.
+        expiry_delta: Time delta used to compute the expiration timestamp.
+        token_type: Token category to embed in the payload.
+
+    Returns:
+        Encoded JWT string.
+    """
 
     settings = get_settings()
     now = datetime.now(UTC)
@@ -59,7 +68,15 @@ def create_token(
 
 
 def create_access_token(subject: str, expires_delta: Optional[float]=None) -> str:
-    """Create a signed JWT access token for the given subject."""
+    """Create a signed JWT access token.
+
+    Args:
+        subject: JWT subject value.
+        expires_delta: Optional expiration override in minutes.
+
+    Returns:
+        Encoded access token string.
+    """
 
     settings = get_settings()
     expire_minutes = expires_delta or timedelta(minutes=settings.access_token_expire_minutes)
@@ -70,7 +87,15 @@ def create_access_token(subject: str, expires_delta: Optional[float]=None) -> st
 
 
 def create_refresh_token(subject: str, expires_delta: Optional[float]=None) -> str:
-    """Create a signed JWT refresh token for the given subject."""
+    """Create a signed JWT refresh token.
+
+    Args:
+        subject: JWT subject value.
+        expires_delta: Optional expiration override in minutes.
+
+    Returns:
+        Encoded refresh token string.
+    """
 
     settings = get_settings()
     expire_minutes = expires_delta or timedelta(minutes=settings.refresh_token_expire_days * 24 * 60)
@@ -81,7 +106,14 @@ def create_refresh_token(subject: str, expires_delta: Optional[float]=None) -> s
 
 
 def create_email_verification_token(subject: str) -> str:
-    """Create a time-limited token used for email verification."""
+    """Create a time-limited token used for email verification.
+
+    Args:
+        subject: JWT subject value.
+
+    Returns:
+        Encoded email verification token string.
+    """
 
     settings = get_settings()
 
@@ -93,7 +125,14 @@ def create_email_verification_token(subject: str) -> str:
 
 
 def create_password_reset_token(subject: str) -> str:
-    """Create a time-limited token used for password reset."""
+    """Create a time-limited token used for password reset.
+
+    Args:
+        subject: JWT subject value.
+
+    Returns:
+        Encoded password reset token string.
+    """
 
     settings = get_settings()
 
@@ -105,7 +144,14 @@ def create_password_reset_token(subject: str) -> str:
 
 
 def decode_email_verification_token(token: str) -> str:
-    """Decode and validate an email verification token, returning the subject."""
+    """Decode and validate an email verification token.
+
+    Args:
+        token: Encoded email verification token.
+
+    Returns:
+        The token subject.
+    """
 
     settings = get_settings()
     payload = jwt.decode(
@@ -120,7 +166,14 @@ def decode_email_verification_token(token: str) -> str:
 
 
 def decode_password_reset_token(token: str) -> str:
-    """Decode and validate a password reset token, returning the subject."""
+    """Decode and validate a password reset token.
+
+    Args:
+        token: Encoded password reset token.
+
+    Returns:
+        The token subject.
+    """
 
     settings = get_settings()
     payload = jwt.decode(
@@ -135,7 +188,14 @@ def decode_password_reset_token(token: str) -> str:
 
 
 def decode_access_token(token: str) -> str:
-    """Decode and validate a JWT access token, returning the subject."""
+    """Decode and validate a JWT access token.
+
+    Args:
+        token: Encoded access token.
+
+    Returns:
+        The token subject.
+    """
 
     settings = get_settings()
     payload = jwt.decode(
@@ -150,7 +210,14 @@ def decode_access_token(token: str) -> str:
 
 
 def decode_refresh_token(token: str) -> str:
-    """Decode and validate a JWT refresh token, returning the user."""
+    """Decode and validate a JWT refresh token.
+
+    Args:
+        token: Encoded refresh token.
+
+    Returns:
+        The token subject.
+    """
 
     settings = get_settings()
     payload = jwt.decode(
@@ -165,7 +232,14 @@ def decode_refresh_token(token: str) -> str:
 
 
 def hash_token(token: str) -> str:
-    """Return a stable hash for storing token material securely."""
+    """Return a stable hash for storing token material securely.
+
+    Args:
+        token: Raw token string.
+
+    Returns:
+        SHA-256 hex digest of the token.
+    """
 
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
@@ -202,7 +276,14 @@ class AuthService:
         return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
     async def register_user(self, user_in: UserCreate) -> UserResponse:
-        """Create a new user with a hashed password."""
+        """Create a new user with a hashed password.
+
+        Args:
+            user_in: User registration payload.
+
+        Returns:
+            The created user response model.
+        """
 
         try:
             await self._ensure_email_is_available(user_in.email)
@@ -218,7 +299,12 @@ class AuthService:
         return UserResponse.model_validate(user)
 
     async def send_verification_email(self, user, host: str) -> None:
-        """Generate a verification token and send it to the user's email using fastapi-mail."""
+        """Generate a verification token and send it to the user's email.
+
+        Args:
+            user: Persisted user instance.
+            host: Base application URL.
+        """
 
         token = create_email_verification_token(user.email)
         settings = get_settings()
@@ -232,7 +318,14 @@ class AuthService:
         )
 
     async def verify_email(self, token: str) -> UserResponse:
-        """Verify the email using the provided token and mark the user verified."""
+        """Verify an email token and mark the user as verified.
+
+        Args:
+            token: Encoded email verification token.
+
+        Returns:
+            The updated user response model.
+        """
 
         try:
             email = decode_email_verification_token(token)
@@ -252,7 +345,14 @@ class AuthService:
         return UserResponse.model_validate(user)
 
     async def login_user(self, user_in: UserLogin) -> TokenResponse:
-        """Validate user credentials and return a token pair."""
+        """Validate user credentials and return a token pair.
+
+        Args:
+            user_in: User login payload.
+
+        Returns:
+            Access and refresh token pair.
+        """
 
         user = await self.repository.get_user_by_email(user_in.email)
         if user is None or not verify_password(user_in.password, user.hashed_password):
@@ -270,7 +370,12 @@ class AuthService:
         return token_pair
     
     async def logout_user(self, user, token: str | None = None) -> None:
-        """Invalidate the user's refresh token by clearing the stored hash and expiry."""
+        """Invalidate the user's refresh token.
+
+        Args:
+            user: Persisted user instance.
+            token: Optional access token used to clear cached user data.
+        """
 
         user.refresh_token_hash = None
         user.refresh_token_expires_at = None
@@ -280,7 +385,14 @@ class AuthService:
             await invalidate_current_user_cache(token)
 
     async def refresh_tokens(self, refresh_request: RefreshTokenRequest) -> TokenResponse:
-        """Rotate a valid refresh token and return a new token pair."""
+        """Rotate a valid refresh token and return a new token pair.
+
+        Args:
+            refresh_request: Refresh token payload.
+
+        Returns:
+            New access and refresh token pair.
+        """
 
         try:
             email = decode_refresh_token(refresh_request.refresh_token)
@@ -311,7 +423,15 @@ class AuthService:
         return token_pair
 
     async def request_password_reset(self, reset_request: PasswordResetRequest, host: str) -> dict:
-        """Generate a password reset token and send it via email."""
+        """Generate a password reset token and send it via email.
+
+        Args:
+            reset_request: Password reset request payload.
+            host: Base application URL.
+
+        Returns:
+            A generic response that does not reveal whether the email exists.
+        """
 
         user = await self.repository.get_user_by_email(reset_request.email)
         if user is None:
@@ -336,7 +456,14 @@ class AuthService:
         return {"detail": "If the email exists, a password reset link has been sent"}
 
     async def reset_password(self, reset_update: PasswordResetUpdate) -> dict:
-        """Verify password reset token and update password."""
+        """Verify a password reset token and update the password.
+
+        Args:
+            reset_update: Password reset payload.
+
+        Returns:
+            A generic success response after the password is updated.
+        """
 
         try:
             email = decode_password_reset_token(reset_update.token)

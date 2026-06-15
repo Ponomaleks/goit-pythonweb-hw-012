@@ -21,7 +21,15 @@ class CloudinaryConfig:
 
 
 def build_gravatar_url(email: str, size: int = 200) -> str:
-    """Return a deterministic Gravatar URL for the given email address."""
+    """Return a deterministic Gravatar URL for the given email address.
+
+    Args:
+        email: Email address used to derive the avatar hash.
+        size: Requested avatar size in pixels.
+
+    Returns:
+        Gravatar URL for the normalized email address.
+    """
 
     normalized_email = email.strip().lower().encode("utf-8")
     email_hash = hashlib.md5(normalized_email, usedforsecurity=False).hexdigest()
@@ -58,7 +66,15 @@ def _configure_cloudinary() -> None:
 
 
 async def upload_avatar(file: UploadFile, user_id: int) -> str:
-    """Upload an avatar image to Cloudinary and return its secure URL."""
+    """Upload an avatar image to Cloudinary.
+
+    Args:
+        file: Uploaded image file.
+        user_id: Owning user identifier.
+
+    Returns:
+        Secure Cloudinary URL for the uploaded avatar.
+    """
 
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(

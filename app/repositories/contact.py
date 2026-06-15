@@ -16,7 +16,15 @@ class ContactRepository:
         self.session = session
 
     async def create_contact(self, contact_in: ContactCreate, user_id: int) -> Contact:
-        """Create a Contact ORM object, add to session, and flush (sync without commit)."""
+        """Create a contact ORM object, add it to the session, and flush.
+
+        Args:
+            contact_in: Contact creation payload.
+            user_id: Owning user identifier.
+
+        Returns:
+            Created contact ORM instance.
+        """
 
         contact = Contact(**contact_in.model_dump(), user_id=user_id)
         self.session.add(contact)
@@ -24,7 +32,15 @@ class ContactRepository:
         return contact
 
     async def get_contact_by_id(self, contact_id: int, user_id: int) -> Contact | None:
-        """Return a contact by primary key or `None` if it does not exist."""
+        """Return a contact by primary key.
+
+        Args:
+            contact_id: Contact identifier.
+            user_id: Owning user identifier.
+
+        Returns:
+            Contact ORM instance or `None`.
+        """
 
         stmt = select(Contact).where(
             Contact.id == contact_id, Contact.user_id == user_id
@@ -33,7 +49,15 @@ class ContactRepository:
         return result.scalar_one_or_none()
 
     async def get_contact_by_email(self, email: str, user_id: int) -> Contact | None:
-        """Return a contact by email or `None` if it does not exist."""
+        """Return a contact by email.
+
+        Args:
+            email: Contact email address.
+            user_id: Owning user identifier.
+
+        Returns:
+            Contact ORM instance or `None`.
+        """
 
         stmt = select(Contact).where(Contact.email == email, Contact.user_id == user_id)
         result = await self.session.execute(stmt)
@@ -42,7 +66,16 @@ class ContactRepository:
     async def get_contacts_list(
         self, user_id: int, skip: int = 0, limit: int = 10
     ) -> list[Contact]:
-        """Return a paginated list of contacts ordered by creation time or name."""
+        """Return a paginated list of contacts.
+
+        Args:
+            user_id: Owning user identifier.
+            skip: Number of records to skip.
+            limit: Maximum number of records to return.
+
+        Returns:
+            List of contact ORM instances.
+        """
 
         # Apply pagination constraints: skip >= 0, 1 <= limit <= 100
         skip = max(0, skip)
@@ -61,7 +94,15 @@ class ContactRepository:
     async def search_contact(
         self, user_id: int, query: ContactSearchQuery
     ) -> list[Contact]:
-        """Return contacts filtered by first name, last name, or email (OR logic)."""
+        """Return contacts filtered by first name, last name, or email.
+
+        Args:
+            user_id: Owning user identifier.
+            query: Search criteria.
+
+        Returns:
+            List of contact ORM instances.
+        """
 
         filters = []
         if query.first_name:
@@ -82,7 +123,15 @@ class ContactRepository:
     async def replace_contact(
         self, contact: Contact, contact_in: ContactCreate
     ) -> Contact:
-        """Replace all mutable contact fields using a complete payload."""
+        """Replace all mutable contact fields using a complete payload.
+
+        Args:
+            contact: Existing contact ORM instance.
+            contact_in: Complete contact payload.
+
+        Returns:
+            Updated contact ORM instance.
+        """
 
         for field, value in contact_in.model_dump().items():
             setattr(contact, field, value)
@@ -93,7 +142,15 @@ class ContactRepository:
     async def patch_contact(
         self, contact: Contact, contact_in: ContactUpdate
     ) -> Contact:
-        """Apply partial updates to an existing contact."""
+        """Apply partial updates to an existing contact.
+
+        Args:
+            contact: Existing contact ORM instance.
+            contact_in: Partial contact payload.
+
+        Returns:
+            Updated contact ORM instance.
+        """
 
         update_data = contact_in.model_dump(exclude_unset=True)
         for field, value in update_data.items():
@@ -103,7 +160,11 @@ class ContactRepository:
         return contact
 
     async def delete_contact(self, contact: Contact) -> None:
-        """Remove a contact from session, and flush (sync without commit)."""
+        """Remove a contact from the session and flush.
+
+        Args:
+            contact: Contact ORM instance to delete.
+        """
 
         await self.session.delete(contact)
         await self.session.flush()
@@ -111,7 +172,15 @@ class ContactRepository:
     async def get_upcoming_birthdays(
         self, user_id: int, days: int = 7
     ) -> list[Contact]:
-        """Return contacts whose birthday falls within the next N days."""
+        """Return contacts whose birthday falls within the next N days.
+
+        Args:
+            user_id: Owning user identifier.
+            days: Look-ahead window in days.
+
+        Returns:
+            List of contact ORM instances.
+        """
 
         today = date.today()
         end_date = today + timedelta(days=days)

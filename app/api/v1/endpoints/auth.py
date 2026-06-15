@@ -32,7 +32,17 @@ async def signup(
     request: Request,
     session: AsyncSession = Depends(get_db),
 ) -> UserResponse:
-    """Create a new user account."""
+    """Create a new user account.
+
+    Args:
+        user_in: User registration payload.
+        background_tasks: Background task queue.
+        request: Incoming HTTP request.
+        session: Active database session.
+
+    Returns:
+        Created user response model.
+    """
 
     service = AuthService(session)
     created = await service.register_user(user_in)
@@ -55,7 +65,15 @@ async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     session: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
-    """Authenticate a user and return a token pair."""
+    """Authenticate a user and return a token pair.
+
+    Args:
+        form_data: OAuth2 password form payload.
+        session: Active database session.
+
+    Returns:
+        Access and refresh token pair.
+    """
 
     service = AuthService(session)
     user_in = UserLogin(email=form_data.username, password=form_data.password)
@@ -71,7 +89,13 @@ async def logout(
     session: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ) -> None:
-    """Invalidate the current user's refresh token."""
+    """Invalidate the current user's refresh token.
+
+    Args:
+        token: Bearer access token used for cache invalidation.
+        session: Active database session.
+        current_user: Authenticated user.
+    """
 
     if current_user is None:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -90,7 +114,15 @@ async def refresh(
     refresh_request: RefreshTokenRequest,
     session: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
-    """Rotate a refresh token and issue a new token pair."""
+    """Rotate a refresh token and issue a new token pair.
+
+    Args:
+        refresh_request: Refresh token payload.
+        session: Active database session.
+
+    Returns:
+        New access and refresh token pair.
+    """
 
     service = AuthService(session)
     return await service.refresh_tokens(refresh_request)
@@ -100,7 +132,15 @@ async def refresh(
 async def verify_email(
     token: str, session: AsyncSession = Depends(get_db)
 ) -> UserResponse:
-    """Verify an email confirmation token and mark the user as verified."""
+    """Verify an email confirmation token and mark the user as verified.
+
+    Args:
+        token: Email verification token.
+        session: Active database session.
+
+    Returns:
+        Updated user response model.
+    """
 
     service = AuthService(session)
     return await service.verify_email(token)
@@ -113,7 +153,17 @@ async def resend_verification(
     request: Request,
     session: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Resend the verification email to the provided address (if the user exists)."""
+    """Resend the verification email to the provided address.
+
+    Args:
+        email_request: Email payload.
+        background_tasks: Background task queue.
+        request: Incoming HTTP request.
+        session: Active database session.
+
+    Returns:
+        Generic queued-or-already-verified response.
+    """
 
     repo = AuthService(session).repository
     user = await repo.get_user_by_email(email_request.email)
@@ -137,7 +187,17 @@ async def forgot_password(
     request: Request,
     session: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Request a password reset by email."""
+    """Request a password reset by email.
+
+    Args:
+        reset_request: Password reset request payload.
+        background_tasks: Background task queue.
+        request: Incoming HTTP request.
+        session: Active database session.
+
+    Returns:
+        Generic response that does not reveal whether the email exists.
+    """
 
     service = AuthService(session)
     background_tasks.add_task(
@@ -151,7 +211,15 @@ async def reset_password(
     reset_update: PasswordResetUpdate,
     session: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Reset password using a valid password reset token."""
+    """Reset password using a valid password reset token.
+
+    Args:
+        reset_update: Password reset payload.
+        session: Active database session.
+
+    Returns:
+        Generic success response.
+    """
 
     service = AuthService(session)
     return await service.reset_password(reset_update)

@@ -22,7 +22,11 @@ class ContactService:
         self.session = session
 
     async def _commit_and_refresh(self, contact) -> None:
-        """Commit transaction and refresh contact from database."""
+        """Commit the transaction and refresh the contact instance.
+
+        Args:
+            contact: ORM contact instance to refresh after commit.
+        """
         try:
             await self.session.commit()
             await self.session.refresh(contact)
@@ -33,7 +37,15 @@ class ContactService:
             ) from exc
 
     async def _get_by_id_or_raise(self, user_id: int, contact_id: int):
-        """Fetch contact by ID or raise ContactNotFoundError."""
+        """Fetch a contact by ID or raise an error.
+
+        Args:
+            user_id: Owning user identifier.
+            contact_id: Contact identifier.
+
+        Returns:
+            Contact ORM instance.
+        """
         contact = await self.repository.get_contact_by_id(contact_id, user_id)
         if not contact:
             raise ContactNotFoundError(f"Contact with id {contact_id} not found")
@@ -55,7 +67,15 @@ class ContactService:
     async def create_contact(
         self, user_id: int, contact_in: ContactCreate
     ) -> ContactResponse:
-        """Validate and create a new contact."""
+        """Validate and create a new contact.
+
+        Args:
+            user_id: Owning user identifier.
+            contact_in: Contact creation payload.
+
+        Returns:
+            Created contact response model.
+        """
 
         try:
             await self._ensure_email_is_available(user_id, contact_in.email)
@@ -69,7 +89,15 @@ class ContactService:
         return ContactResponse.model_validate(contact)
 
     async def get_contact(self, user_id: int, contact_id: int) -> ContactResponse:
-        """Return a single contact or raise a not-found error."""
+        """Return a single contact or raise a not-found error.
+
+        Args:
+            user_id: Owning user identifier.
+            contact_id: Contact identifier.
+
+        Returns:
+            Contact response model.
+        """
 
         contact = await self._get_by_id_or_raise(user_id, contact_id)
         return ContactResponse.model_validate(contact)
@@ -77,7 +105,16 @@ class ContactService:
     async def list_contacts(
         self, user_id: int, skip: int = 0, limit: int = 10
     ) -> list[ContactResponse]:
-        """Return the current contacts collection with pagination."""
+        """Return the current contacts collection with pagination.
+
+        Args:
+            user_id: Owning user identifier.
+            skip: Number of records to skip.
+            limit: Maximum number of records to return.
+
+        Returns:
+            List of contact response models.
+        """
 
         contacts = await self.repository.get_contacts_list(user_id, skip, limit)
         return [ContactResponse.model_validate(contact) for contact in contacts]
@@ -85,7 +122,15 @@ class ContactService:
     async def search_contacts(
         self, user_id: int, query: ContactSearchQuery
     ) -> list[ContactResponse]:
-        """Return contacts matching the requested query parameters."""
+        """Return contacts matching the requested query parameters.
+
+        Args:
+            user_id: Owning user identifier.
+            query: Search criteria.
+
+        Returns:
+            List of contact response models.
+        """
 
         contacts = await self.repository.search_contact(user_id, query)
         return [ContactResponse.model_validate(contact) for contact in contacts]
@@ -93,7 +138,16 @@ class ContactService:
     async def update_contact(
         self, user_id: int, contact_id: int, contact_in: ContactCreate
     ) -> ContactResponse:
-        """Replace an existing contact using a complete payload."""
+        """Replace an existing contact using a complete payload.
+
+        Args:
+            user_id: Owning user identifier.
+            contact_id: Contact identifier.
+            contact_in: Complete contact payload.
+
+        Returns:
+            Updated contact response model.
+        """
 
         contact = await self._get_by_id_or_raise(user_id, contact_id)
         try:
@@ -112,7 +166,16 @@ class ContactService:
     async def patch_contact(
         self, user_id: int, contact_id: int, contact_in: ContactUpdate
     ) -> ContactResponse:
-        """Partially update an existing contact."""
+        """Partially update an existing contact.
+
+        Args:
+            user_id: Owning user identifier.
+            contact_id: Contact identifier.
+            contact_in: Partial contact payload.
+
+        Returns:
+            Updated contact response model.
+        """
 
         contact = await self._get_by_id_or_raise(user_id, contact_id)
         try:
@@ -132,7 +195,12 @@ class ContactService:
         return ContactResponse.model_validate(contact)
 
     async def delete_contact(self, user_id: int, contact_id: int) -> None:
-        """Delete an existing contact or raise a not-found error."""
+        """Delete an existing contact or raise a not-found error.
+
+        Args:
+            user_id: Owning user identifier.
+            contact_id: Contact identifier.
+        """
 
         contact = await self._get_by_id_or_raise(user_id, contact_id)
         await self.repository.delete_contact(contact)
@@ -141,7 +209,15 @@ class ContactService:
     async def get_upcoming_birthdays(
         self, user_id: int, days: int = 7
     ) -> list[UpcomingBirthdayResponse]:
-        """Return the contacts whose birthdays are within the next 7 days."""
+        """Return the contacts whose birthdays are within the next 7 days.
+
+        Args:
+            user_id: Owning user identifier.
+            days: Look-ahead window in days.
+
+        Returns:
+            List of upcoming birthday response models.
+        """
 
         contacts = await self.repository.get_upcoming_birthdays(user_id, days)
         return [

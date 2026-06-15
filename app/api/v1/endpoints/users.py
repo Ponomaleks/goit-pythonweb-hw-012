@@ -29,7 +29,15 @@ async def get_current_user_profile(
     request: Request,
     current_user: User = Depends(get_current_user),
 ) -> UserResponse:
-    """Return the authenticated user's profile."""
+    """Return the authenticated user's profile.
+
+    Args:
+        request: Incoming HTTP request.
+        current_user: Authenticated user.
+
+    Returns:
+        Current user response model.
+    """
 
     return UserResponse.model_validate(current_user)
 
@@ -47,7 +55,17 @@ async def update_current_user_avatar(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> UserResponse:
-    """Upload a new avatar image for the authenticated user."""
+    """Upload a new avatar image for the authenticated user.
+
+    Args:
+        request: Incoming HTTP request.
+        file: Uploaded avatar image.
+        current_user: Authenticated user.
+        session: Active database session.
+
+    Returns:
+        Updated user response model.
+    """
 
     avatar_url = await upload_avatar(file, current_user.id)
     repository = UserRepository(session)
@@ -72,7 +90,17 @@ async def update_user_role(
     session: AsyncSession = Depends(get_db),
     _: User = Depends(require_admin),
 ) -> UserResponse:
-    """Allow admins to update a user's role."""
+    """Allow admins to update a user's role.
+
+    Args:
+        user_id: Target user identifier.
+        role_update: Role update payload.
+        session: Active database session.
+        _: Auth dependency that requires an admin user.
+
+    Returns:
+        Updated user response model.
+    """
 
     repository = UserRepository(session)
     updated_user = await repository.update_user_role(user_id, role_update.role)
@@ -92,6 +120,13 @@ async def update_user_role(
 async def moderator_admin_access_check(
     _: User = Depends(require_moderator_or_admin),
 ) -> dict:
-    """Return a success message for moderator/admin access."""
+    """Return a success message for moderator/admin access.
+
+    Args:
+        _: Auth dependency that requires a moderator or admin user.
+
+    Returns:
+        Success detail payload.
+    """
 
     return {"detail": "Successful access for moderator or admin"}

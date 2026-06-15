@@ -7,3 +7,5 @@
 - TEST-001 Unit Tests for Repository and Service Layers
 - TEST-002 Integration Tests for FastAPI Endpoints
 - TEST-003 Test Coverage ≥ 75%
+- DOC-001 Sphinx Documentation Setup
+- DOC-002 Complete Docstrings for Sphinx

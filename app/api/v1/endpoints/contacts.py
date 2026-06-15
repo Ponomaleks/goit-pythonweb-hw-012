@@ -29,7 +29,16 @@ async def create_contact(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> ContactResponse:
-    """Create a new contact with the provided data."""
+    """Create a new contact with the provided data.
+
+    Args:
+        contact_in: Contact creation payload.
+        current_user: Authenticated user.
+        session: Active database session.
+
+    Returns:
+        Created contact response model.
+    """
     service = ContactService(session)
     return await service.create_contact(current_user.id, contact_in)
 
@@ -46,7 +55,17 @@ async def list_contacts(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> list[ContactResponse]:
-    """Return a paginated list of all contacts."""
+    """Return a paginated list of all contacts.
+
+    Args:
+        skip: Number of records to skip.
+        limit: Maximum number of records to return.
+        current_user: Authenticated user.
+        session: Active database session.
+
+    Returns:
+        List of contact response models.
+    """
     service = ContactService(session)
     return await service.list_contacts(current_user.id, skip, limit)
 
@@ -64,7 +83,18 @@ async def search_contacts(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> list[ContactResponse]:
-    """Search for contacts by first name, last name, or email (OR logic)."""
+    """Search for contacts by first name, last name, or email.
+
+    Args:
+        first_name: Optional first-name filter.
+        last_name: Optional last-name filter.
+        email: Optional email filter.
+        current_user: Authenticated user.
+        session: Active database session.
+
+    Returns:
+        List of contact response models.
+    """
     query = ContactSearchQuery(first_name=first_name, last_name=last_name, email=email)
     service = ContactService(session)
     return await service.search_contacts(current_user.id, query)
@@ -81,7 +111,16 @@ async def get_upcoming_birthdays(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> list[UpcomingBirthdayResponse]:
-    """Return contacts whose birthdays fall within the next N days."""
+    """Return contacts whose birthdays fall within the next N days.
+
+    Args:
+        days: Look-ahead window in days.
+        current_user: Authenticated user.
+        session: Active database session.
+
+    Returns:
+        List of upcoming birthday response models.
+    """
     service = ContactService(session)
     return await service.get_upcoming_birthdays(current_user.id, days)
 
@@ -97,7 +136,16 @@ async def get_contact_by_id(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> ContactResponse:
-    """Return a single contact by its ID."""
+    """Return a single contact by its ID.
+
+    Args:
+        contact_id: Contact identifier.
+        current_user: Authenticated user.
+        session: Active database session.
+
+    Returns:
+        Contact response model.
+    """
     service = ContactService(session)
     return await service.get_contact(current_user.id, contact_id)
 
@@ -114,7 +162,17 @@ async def update_contact(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> ContactResponse:
-    """Replace an existing contact. All required fields must be provided."""
+    """Replace an existing contact.
+
+    Args:
+        contact_id: Contact identifier.
+        contact_in: Complete contact payload.
+        current_user: Authenticated user.
+        session: Active database session.
+
+    Returns:
+        Updated contact response model.
+    """
     service = ContactService(session)
     return await service.update_contact(current_user.id, contact_id, contact_in)
 
@@ -131,7 +189,17 @@ async def patch_contact(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> ContactResponse:
-    """Partially update a contact with one or more fields."""
+    """Partially update a contact with one or more fields.
+
+    Args:
+        contact_id: Contact identifier.
+        contact_in: Partial contact payload.
+        current_user: Authenticated user.
+        session: Active database session.
+
+    Returns:
+        Updated contact response model.
+    """
     service = ContactService(session)
     return await service.patch_contact(current_user.id, contact_id, contact_in)
 
@@ -146,6 +214,12 @@ async def delete_contact(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> None:
-    """Delete a contact by its ID."""
+    """Delete a contact by its ID.
+
+    Args:
+        contact_id: Contact identifier.
+        current_user: Authenticated user.
+        session: Active database session.
+    """
     service = ContactService(session)
     await service.delete_contact(current_user.id, contact_id)

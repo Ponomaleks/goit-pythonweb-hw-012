@@ -14,11 +14,21 @@ from app.services.auth import decode_access_token
 from app.core.redis import cache_current_user, get_cached_current_user
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+
+
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
     session: AsyncSession = Depends(get_db),
 ) -> User:
-    """Return the current authenticated user from a bearer token."""
+    """Return the current authenticated user from a bearer token.
+
+    Args:
+        token: Bearer access token.
+        session: Active database session.
+
+    Returns:
+        Authenticated user ORM instance.
+    """
 
     try:
         email = decode_access_token(token)
@@ -38,7 +48,14 @@ async def get_current_user(
 
 
 def require_roles(*allowed_roles: UserRole) -> Callable:
-    """Build a dependency that allows only users with the given roles."""
+    """Build a dependency that allows only users with the given roles.
+
+    Args:
+        allowed_roles: One or more roles allowed to access the route.
+
+    Returns:
+        Dependency callable that validates the authenticated user's role.
+    """
 
     async def _role_guard(current_user: User = Depends(get_current_user)) -> User:
         if current_user.role not in allowed_roles:

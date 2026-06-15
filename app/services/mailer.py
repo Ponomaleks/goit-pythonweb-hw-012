@@ -1,3 +1,5 @@
+"""Email delivery helpers."""
+
 from typing import Any, Dict, List
 
 from fastapi_mail import (
@@ -13,6 +15,12 @@ from pathlib import Path
 
 
 def get_mail_config() -> ConnectionConfig:
+    """Build the FastAPI-Mail connection configuration.
+
+    Returns:
+        FastAPI-Mail connection configuration object.
+    """
+
     settings = get_settings()
     return ConnectionConfig(
         MAIL_USERNAME=settings.mail_username,
@@ -33,6 +41,15 @@ async def send_verification_email(
     template_data: Dict[str, Any],
     template_name: str = "verification.html",
 ) -> None:
+    """Send a templated verification email.
+
+    Args:
+        to: Recipient address.
+        subject: Email subject line.
+        template_data: Template context data.
+        template_name: Template filename relative to the email templates folder.
+    """
+
     try:
         conf = get_mail_config()
         message = MessageSchema(
