@@ -1,37 +1,34 @@
 # ACTIVE TASK
 
-## TASK ID: SEC-001
+## TASK ID: INF-001
 
 ## Title:
-Role-Based Access Control (RBAC)
+Redis Caching Layer for Authenticated Users
 
 ---
 
 ## Objective:
-Introduce user roles and enforce permissions across API.
+Optimize authentication by caching current user in Redis.
 
 ---
 
 ## Scope (STRICT)
-- add role field to User model (user/admin)
-- implement role check dependency
-- protect admin-only operations
-- enforce role validation in dependency layer (not routers)
+- cache user after authentication
+- modify get_current_user to check Redis first
+- fallback to DB if cache miss occurs
+- define TTL (e.g. 15 minutes)
+- ensure cache invalidation on logout or token expiry
 
 ---
 
 ## Constraints
-- default role should be "user"
-- only admin can change role
-- no duplicated role checks in endpoints
-- must use FastAPI dependencies
-- no breaking API changes
-- role checks must be in dependency layer
+- must not break auth flow
+- must be transparent to API layer
+- Redis is optional fallback-safe (system must work without it)
 
 ---
 
 ## Acceptance Criteria
-- admin-only routes are protected
-- users have assignable roles
-- normal users cannot access admin actions
-- role system is reusable via dependency
+- DB is not hit on cache hit
+- user session is cached
+- cache expires correctly

@@ -5,6 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.dependencies import get_db
+from app.api.dependencies import get_current_user, oauth2_scheme
 from app.schemas.user import (
     EmailRequest,
     RefreshTokenRequest,
@@ -16,8 +17,6 @@ from app.schemas.user import (
     PasswordResetUpdate,
 )
 from app.services.auth import AuthService
-from app.api.dependencies import get_current_user
-
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
@@ -68,6 +67,7 @@ async def login(
     summary="Logout the current user",
 )
 async def logout(
+    token: str = Depends(oauth2_scheme),
     session: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ) -> None:
@@ -77,7 +77,7 @@ async def logout(
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     service = AuthService(session)
-    await service.logout_user(current_user)
+    await service.logout_user(current_user, token=token)
 
 
 @router.post(

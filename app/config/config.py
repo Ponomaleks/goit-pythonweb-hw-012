@@ -58,6 +58,10 @@ class Settings(BaseSettings):
     rate_limit_default: str = "10/minute"
     rate_limit_storage_url: str | None = None  # e.g. redis://user:pass@redis:6379/0
 
+    # Redis cache for authenticated users
+    redis_url: str | None = None
+    current_user_cache_ttl_minutes: int = 15
+
     # Cloudinary (avatar uploads)
     cloudinary_cloud_name: str | None = None
     cloudinary_api_key: str | None = None

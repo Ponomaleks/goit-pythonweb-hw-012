@@ -1,6 +1,7 @@
 """API-level dependencies shared across routers."""
 
 from collections.abc import Callable
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,10 +11,9 @@ from app.exceptions import InvalidTokenError, UserNotFoundError
 from app.models.user import User, UserRole
 from app.repositories.user import UserRepository
 from app.services.auth import decode_access_token
+from app.core.redis import cache_current_user, get_cached_current_user
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
-
-
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
     session: AsyncSession = Depends(get_db),
@@ -25,9 +25,15 @@ async def get_current_user(
     except Exception as exc:
         raise InvalidTokenError("Invalid access token") from exc
 
+    cached_user = await get_cached_current_user(token)
+    if cached_user is not None:
+        return cached_user
+
     user = await UserRepository(session).get_user_by_email(email)
     if user is None:
         raise UserNotFoundError("Authenticated user not found")
+
+    await cache_current_user(token, user)
     return user
 
 

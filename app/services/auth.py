@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.core.redis import cache_current_user, invalidate_current_user_cache
 from app.exceptions import (
     InvalidCredentialsError,
     UserAlreadyExistsError,
@@ -259,14 +260,18 @@ class AuthService:
             days=get_settings().refresh_token_expire_days
         )
         await self._commit_and_refresh(user)
+        await cache_current_user(token_pair.access_token, user)
         return token_pair
     
-    async def logout_user(self, user) -> None:
+    async def logout_user(self, user, token: str | None = None) -> None:
         """Invalidate the user's refresh token by clearing the stored hash and expiry."""
 
         user.refresh_token_hash = None
         user.refresh_token_expires_at = None
         await self._commit_and_refresh(user)
+
+        if token:
+            await invalidate_current_user_cache(token)
 
     async def refresh_tokens(self, refresh_request: RefreshTokenRequest) -> TokenResponse:
         """Rotate a valid refresh token and return a new token pair."""
@@ -296,6 +301,7 @@ class AuthService:
             days=get_settings().refresh_token_expire_days
         )
         await self._commit_and_refresh(user)
+        await cache_current_user(token_pair.access_token, user)
         return token_pair
 
     async def request_password_reset(self, reset_request: PasswordResetRequest, host: str) -> dict:
