@@ -170,6 +170,12 @@ def hash_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
+def _ensure_aware(value: datetime) -> datetime:
+    """Normalize a datetime value to UTC if the database returned it without tzinfo."""
+
+    return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
+
+
 class AuthService:
     """Business logic for user registration and authentication."""
 
@@ -290,7 +296,7 @@ class AuthService:
         if (
             not stored_hash
             or not expires_at
-            or expires_at <= datetime.now(UTC)
+            or _ensure_aware(expires_at) <= datetime.now(UTC)
             or stored_hash != hash_token(refresh_request.refresh_token)
         ):
             raise InvalidCredentialsError("Invalid or expired refresh token")
@@ -346,7 +352,7 @@ class AuthService:
         if (
             not stored_hash
             or not expires_at
-            or expires_at <= datetime.now(UTC)
+            or _ensure_aware(expires_at) <= datetime.now(UTC)
             or stored_hash != hash_token(reset_update.token)
         ):
             raise InvalidCredentialsError("Invalid or expired password reset token")

@@ -50,6 +50,8 @@ redis = "*"
 pytest = "*"
 pytest-asyncio = "*"
 httpx = "*"
+aiosqlite = "*"
+pytest-cov = "*"
 
 [requires]
 python_version = "3.12"

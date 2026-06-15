@@ -1,25 +1,24 @@
 # ACTIVE TASK
 
-## TASK ID: TEST-001
+## TASK ID: TEST-003
 
 ## Title:
-Unit Tests for Repository and Service Layers
+Test Coverage ≥ 75%
 
 ---
 
 ## Objective:
-Cover business logic and DB access layers with unit tests.
+Ensure minimum coverage using pytest-cov.
 
 ---
 
 ## Scope (STRICT)
-- test repository methods (user, contact)
-- test service layer logic (auth, mailer, avatar)
-- mock DB session
-- mock external services
+- configure pytest-cov
+- identify uncovered modules
+- add missing tests
+- ensure ≥75% coverage
 
 ---
 
 ## Acceptance Criteria
-- repositories tested independently
-- services tested without FastAPI layer
+- coverage report passes threshold
