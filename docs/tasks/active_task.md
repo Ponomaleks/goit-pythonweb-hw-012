@@ -1,34 +1,25 @@
 # ACTIVE TASK
 
-## TASK ID: INF-001
+## TASK ID: TEST-001
 
 ## Title:
-Redis Caching Layer for Authenticated Users
+Unit Tests for Repository and Service Layers
 
 ---
 
 ## Objective:
-Optimize authentication by caching current user in Redis.
+Cover business logic and DB access layers with unit tests.
 
 ---
 
 ## Scope (STRICT)
-- cache user after authentication
-- modify get_current_user to check Redis first
-- fallback to DB if cache miss occurs
-- define TTL (e.g. 15 minutes)
-- ensure cache invalidation on logout or token expiry
-
----
-
-## Constraints
-- must not break auth flow
-- must be transparent to API layer
-- Redis is optional fallback-safe (system must work without it)
+- test repository methods (user, contact)
+- test service layer logic (auth, mailer, avatar)
+- mock DB session
+- mock external services
 
 ---
 
 ## Acceptance Criteria
-- DB is not hit on cache hit
-- user session is cached
-- cache expires correctly
+- repositories tested independently
+- services tested without FastAPI layer
